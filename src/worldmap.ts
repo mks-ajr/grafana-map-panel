@@ -422,6 +422,19 @@ export default class WorldMap {
     circle.setPopupContent(popupContent);
   }
 
+  parseExtraData(jsonString : string) {
+    try {
+      const data = JSON.parse(jsonString)
+      if(Array.isArray(data)) {
+        return data
+      }
+      return null
+    } catch(err) {
+      console.log(err.message)
+      return null
+    }
+  }
+
   getPopupContent(dataPoint) {
     let unit;
 
@@ -456,8 +469,15 @@ export default class WorldMap {
           return `<br />${name}: ${value}`;
         })
         .join('');
-
-      return `${locationName}: ${value} ${unit || ''}${freeDataDisplay}`.trim();
+      //console.log('dataPoint', JSON.stringify(dataPoint || ''))
+      //console.log('extraData', dataPoint["__field_extraData"])
+      //console.log(decodeURI(dataPoint[`__field_extraData`]))
+      const extraDataRows = this.parseExtraData(decodeURI(dataPoint[`__field_extraData`]))
+      if(Array.isArray(extraDataRows)) {
+        return extraDataRows.map(x => `${x.label}: ${x.value}`).join("<br />")
+      } else {
+        return `${locationName}: ${value} ${unit || ''}${freeDataDisplay}`.trim();
+      }
     }
   }
 
