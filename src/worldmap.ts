@@ -241,7 +241,8 @@ export default class WorldMap {
     data.forEach(dataPoint => {
       // Todo: Review: Is a "locationName" really required
       //       just for displaying a circle on a map?
-      if (!dataPoint.locationName) {
+      console.log('dataPoint', JSON.stringify(dataPoint || ''))
+      if (!dataPoint.locationName || !dataPoint.locationLatitude || !dataPoint.locationLongitude) {
         return;
       }
       let circle;
@@ -249,8 +250,10 @@ export default class WorldMap {
       if (circlesByKey[dataPoint.key] === undefined) {
         // Create circle.
         circle = this.createCircle(dataPoint);
-        circles.push(circle);
-        circlesByKey[dataPoint.key] = circle;
+        if(circle) {
+          circles.push(circle);
+          circlesByKey[dataPoint.key] = circle;
+        }
       } else {
         // Amend popup content if circle has been created already.
         circle = circlesByKey[dataPoint.key];
@@ -270,6 +273,13 @@ export default class WorldMap {
       if (!dataPoint.locationName) {
         return;
       }
+      if (!dataPoint.locationLatitude || !dataPoint.locationLongitude) {
+        if(circlesByKey[dataPoint.key]) {
+          delete circlesByKey[dataPoint.key]
+        }
+
+        return;
+      }
 
       if (circlesByKey[dataPoint.key] === undefined) {
         // Update circle.
@@ -286,6 +296,9 @@ export default class WorldMap {
   }
 
   createCircle(dataPoint) {
+    if(dataPoint.locationLatitude === undefined || dataPoint.locationLongitude === undefined) {
+      return null
+    }
     const circle = (window as any).L.circleMarker([dataPoint.locationLatitude, dataPoint.locationLongitude], {
       radius: this.calcCircleSize(dataPoint.value || 0),
       color: this.getColor(dataPoint),
@@ -303,6 +316,9 @@ export default class WorldMap {
   }
 
   updateCircle(dataPoint) {
+    if(dataPoint.locationLatitude === undefined || dataPoint.locationLongitude === undefined) {
+      return null
+    }
     // Find back circle object by data point key.
     const circle = _.find(this.circles, cir => {
       return cir.options.location === dataPoint.key;
@@ -461,14 +477,19 @@ export default class WorldMap {
       let freeDataFields = Object.keys(dataPoint).filter(
         (key: string) => key.startsWith(fieldPrefix) && !specialFields.includes(key)
       );
-
-      let freeDataDisplay = freeDataFields
-        .map((field: string) => {
-          let name = field.slice(fieldPrefix.length);
-          let value = dataPoint[field];
-          return `<br />${name}: ${value}`;
-        })
-        .join('');
+      
+      let dataDisplayHtml = '<table style="width:100%">'
+      freeDataFields.forEach((field : string) => {
+        const name = field.slice(fieldPrefix.length).replace(/^last_/, '')
+        if(name === 'Time') {
+          return
+        }
+        const value = (dataPoint[field] !== undefined && dataPoint[field] !== null) ? dataPoint[field] : ''
+        if(value !== '') {
+          dataDisplayHtml += `<tr><td style="width=50%">${name}</td><td style="text-align:right">${value} ${unit || ''}</td></tr>`
+        }
+      })
+      dataDisplayHtml += '</table>'
       //console.log('dataPoint', JSON.stringify(dataPoint || ''))
       //console.log('extraData', dataPoint["__field_extraData"])
       //console.log(decodeURI(dataPoint[`__field_extraData`]))
@@ -476,7 +497,8 @@ export default class WorldMap {
       if(Array.isArray(extraDataRows)) {
         return extraDataRows.map(x => `${x.label}: ${x.value}`).join("<br />")
       } else {
-        return `${locationName}: ${value} ${unit || ''}${freeDataDisplay}`.trim();
+        return dataDisplayHtml
+        
       }
     }
   }
